@@ -2,11 +2,22 @@ import type { Car } from '@/types/car';
 import { CARS } from '@/constants/cars';
 
 const MOCK_DELAY_MS = 1200;
+const PAGE_SIZE = 10;
 
-export async function fetchCars(): Promise<Car[]> {
+export type FetchCarsPageResult = {
+  data: Car[];
+  hasMore: boolean;
+};
+
+export async function fetchCarsPage(page: number): Promise<FetchCarsPageResult> {
   return new Promise((resolve) => {
     setTimeout(() => {
-      resolve([...CARS]);
+      const start = page * PAGE_SIZE;
+      const slice = CARS.slice(start, start + PAGE_SIZE);
+      resolve({
+        data: [...slice],
+        hasMore: start + slice.length < CARS.length,
+      });
     }, MOCK_DELAY_MS);
   });
 }

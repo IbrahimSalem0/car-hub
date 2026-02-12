@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  Text,
+  View,
+} from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 
 import { CarListItem } from '@/components/CarListItem';
-import { fetchCars } from '@/network/carsApi';
+import { fetchCarsPage } from '@/network/carsApi';
 import type { Car } from '@/types/car';
 
 import { styles } from './index.styles';
@@ -11,14 +17,34 @@ import { styles } from './index.styles';
 export default function Home() {
   const [cars, setCars] = useState<Car[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    fetchCars().then((data) => {
-      setCars(data);
-      setLoading(false);
+  const loadPage = useCallback((pageNum: number, append: boolean) => {
+    return fetchCarsPage(pageNum).then(({ data, hasMore: nextHasMore }) => {
+      setCars((prev) => (append ? [...prev, ...data] : data));
+      setHasMore(nextHasMore);
+      setPage(pageNum);
     });
   }, []);
+
+  useEffect(() => {
+    loadPage(0, false).finally(() => setLoading(false));
+  }, [loadPage]);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadPage(0, false).finally(() => setRefreshing(false));
+  }, [loadPage]);
+
+  const handleEndReached = useCallback(() => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    loadPage(page + 1, true).finally(() => setLoadingMore(false));
+  }, [loadPage, loadingMore, hasMore, page]);
 
   const handleCarPress = useCallback(
     (car: Car) => {
@@ -38,6 +64,15 @@ export default function Home() {
   );
 
   const keyExtractor = useCallback((item: Car) => item.id, []);
+
+  const renderFooter = useCallback(() => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.footer}>
+        <ActivityIndicator size="small" color="#6366F1" />
+      </View>
+    );
+  }, [loadingMore]);
 
   if (loading) {
     return (
@@ -60,6 +95,16 @@ export default function Home() {
         keyExtractor={keyExtractor}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#6366F1"
+          />
+        }
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={renderFooter}
       />
     </View>
   );

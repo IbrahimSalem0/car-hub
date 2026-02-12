@@ -20,4 +20,8 @@ export const styles = StyleSheet.create({
     color: '#666',
     marginTop: 12,
   },
+  footer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
 });
